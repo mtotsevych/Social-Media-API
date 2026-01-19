@@ -18,3 +18,14 @@ class UserLoginView(ObtainAuthToken):
     serializer_class = AuthTokenSerializer
     authentication_classes = ()
     renderer_classes = (JSONRenderer, BrowsableAPIRenderer,)
+
+
+class UserLogoutView(APIView):
+    def post(self, request: Request) -> Response:
+        token = request.auth
+        if token:
+            token.delete()
+        return Response(
+            {"detail": "Logged out"},
+            status=status.HTTP_200_OK
+        )
