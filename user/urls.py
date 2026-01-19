@@ -8,7 +8,7 @@ from user.views import (
     UserYourProfileView,
     UserOtherProfileView,
     UserSubscribeView,
-    UserUnsubscribeView, PostCreateView,
+    UserUnsubscribeView,
 )
 
 app_name = "user"
