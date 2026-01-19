@@ -58,7 +58,29 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return get_user_model().objects.create_user(**validated_data)
 
 
+class UserListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = (
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "date_joined",
+            "last_login",
+        )
+
+
 class UserDetailSerializer(serializers.ModelSerializer):
+    subscriptions = serializers.SlugRelatedField(
+        many=True,
+        slug_field="email"
+    )
+    subscribers = serializers.SlugRelatedField(
+        many=True,
+        slug_field="email"
+    )
+
     class Meta:
         model = get_user_model()
         fields = (
@@ -72,8 +94,16 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "is_staff",
             "photo",
             "bio",
+            "subscriptions",
+            "subscribers",
         )
-        read_only_fields = ("is_staff", "date_joined", "last_login",)
+        read_only_fields = (
+            "is_staff",
+            "date_joined",
+            "last_login",
+            "subscriptions",
+            "subscribers",
+        )
         extra_kwargs = {
             "password": {
                 "write_only": True,
