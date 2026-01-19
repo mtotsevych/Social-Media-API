@@ -54,4 +54,38 @@ class UserCreateSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data: dict) -> User:
+        """Create a new user with encrypted password and return it"""
         return get_user_model().objects.create_user(**validated_data)
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = (
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "date_joined",
+            "last_login",
+            "is_staff",
+            "photo",
+            "bio",
+        )
+        read_only_fields = ("is_staff", "date_joined", "last_login",)
+        extra_kwargs = {
+            "password": {
+                "write_only": True,
+                "style": {"input_type": "password"}
+            }
+        }
+
+    def update(self, instance: User, validated_data: dict) -> User:
+        """Update a user, set the password correctly and return it"""
+        password = validated_data.pop("password", None)
+        user = super().update(instance, validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        return user
