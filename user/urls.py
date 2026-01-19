@@ -5,8 +5,10 @@ from user.views import (
     UserCreateView,
     UserLogoutView,
     UserListView,
-    UserManageYourProfileView,
-    UserRetrieveOtherProfileView,
+    UserYourProfileView,
+    UserOtherProfileView,
+    UserSubscribeView,
+    UserUnsubscribeView, PostCreateView,
 )
 
 app_name = "user"
@@ -18,12 +20,21 @@ urlpatterns = [
     path("users/", UserListView.as_view(), name="user-list"),
     path(
         "users/me/",
-        UserManageYourProfileView.as_view(),
-        name="user-me-manage"
+        UserYourProfileView.as_view(),
+        name="user-me"
     ),
     path(
         "users/<int:pk>/",
-        UserRetrieveOtherProfileView.as_view(),
-        name="user-other-retrieve"
+        UserOtherProfileView.as_view(),
+        name="user-other"
+    ),
+    path(
+        "users/<int:pk>/subscribe/",
+        UserSubscribeView.as_view(),
+        name="user-subscribe"),
+    path(
+        "users/<int:pk>/unsubscribe/",
+        UserUnsubscribeView.as_view(),
+        name="user-unsubscribe"
     ),
 ]
