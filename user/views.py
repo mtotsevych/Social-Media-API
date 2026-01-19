@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import QuerySet
 from rest_framework import generics, status
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import AllowAny
@@ -11,7 +12,8 @@ from user.models import User
 from user.serializers import (
     UserCreateSerializer,
     AuthTokenSerializer,
-    UserDetailSerializer
+    UserListSerializer,
+    UserDetailSerializer,
 )
 
 
@@ -36,6 +38,27 @@ class UserLogoutView(APIView):
             {"detail": "Logged out"},
             status=status.HTTP_200_OK
         )
+
+
+class UserListView(generics.ListAPIView):
+    serializer_class = UserListSerializer
+    queryset = get_user_model().objects.all()
+
+    def get_queryset(self) -> QuerySet[User]:
+        queryset = self.queryset
+
+        email = self.request.query_params.get("email")
+        first_name = self.request.query_params.get("first_name")
+        last_name = self.request.query_params.get("last_name")
+
+        if email:
+            queryset = queryset.filter(email__iexact=email)
+        if first_name:
+            queryset = queryset.filter(first_name__icontains=first_name)
+        if last_name:
+            queryset = queryset.filter(last_name__icontains=last_name)
+
+        return queryset
 
 
 class UserManageYourProfileView(generics.RetrieveUpdateAPIView):
