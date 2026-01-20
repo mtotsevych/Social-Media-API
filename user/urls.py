@@ -9,6 +9,8 @@ from user.views import (
     UserOtherProfileView,
     UserSubscribeView,
     UserUnsubscribeView,
+    PostCreateView,
+    PostListView,
 )
 
 app_name = "user"
@@ -36,5 +38,15 @@ urlpatterns = [
         "users/<int:pk>/unsubscribe/",
         UserUnsubscribeView.as_view(),
         name="user-unsubscribe"
+    ),
+    path(
+        "posts/create/",
+        PostCreateView.as_view(),
+        name="post-create"
+    ),
+    path(
+        "posts/",
+        PostListView.as_view(),
+        name="post-list"
     ),
 ]
