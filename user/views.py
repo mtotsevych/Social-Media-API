@@ -9,12 +9,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from user.models import User
+from user.models import User, Post
 from user.serializers import (
     UserCreateSerializer,
     AuthTokenSerializer,
     UserListSerializer,
     UserDetailSerializer,
+    PostCreateSerializer,
+    PostListSerializer,
 )
 
 
@@ -113,3 +115,45 @@ class UserUnsubscribeView(APIView):
             {"detail": f"You are not subscribed to {user.email}"},
             status=status.HTTP_200_OK
         )
+
+
+class PostCreateView(generics.CreateAPIView):
+    serializer_class = PostCreateSerializer
+
+    def perform_create(self, serializer: PostCreateSerializer) -> None:
+        serializer.save(author=self.request.user)
+
+
+class PostListView(generics.ListAPIView):
+    serializer_class = PostListSerializer
+    queryset = (
+        Post.objects
+        .select_related("author")
+        .prefetch_related("likes", "tags")
+    )
+
+    @staticmethod
+    def _params_to_ints(qs: str) -> list[int]:
+        """Converts a list of string IDs to a list of integers"""
+        return [int(str_id) for str_id in qs.split(",")]
+
+    def get_queryset(self) -> QuerySet[Post]:
+        queryset = self.queryset
+
+        user_posts = self.request.query_params.get("my")
+        subscriptions_posts = self.request.query_params.get(
+            "subscriptions_posts"
+        )
+        tags = self.request.query_params.get("tags")
+
+        if user_posts == "yes":
+            queryset = queryset.filter(author=self.request.user)
+        if subscriptions_posts == "yes":
+            queryset = queryset.filter(
+                author__in=self.request.user.subscriptions.all()
+            )
+        if tags:
+            tag_ids = self._params_to_ints(tags)
+            queryset = queryset.filter(tags__id__in=tag_ids)
+
+        return queryset.distinct()
