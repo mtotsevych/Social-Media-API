@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 
-from user.models import User
+from user.models import User, Tag, Post
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -74,10 +74,12 @@ class UserListSerializer(serializers.ModelSerializer):
 class UserDetailSerializer(serializers.ModelSerializer):
     subscriptions = serializers.SlugRelatedField(
         many=True,
+        read_only=True,
         slug_field="email"
     )
     subscribers = serializers.SlugRelatedField(
         many=True,
+        read_only=True,
         slug_field="email"
     )
 
@@ -119,3 +121,50 @@ class UserDetailSerializer(serializers.ModelSerializer):
             user.set_password(password)
             user.save()
         return user
+
+
+class PostCreateSerializer(serializers.ModelSerializer):
+    tags = serializers.SlugRelatedField(
+        many=True,
+        queryset=Tag.objects.all(),
+        slug_field="name"
+    )
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "title",
+            "content",
+            "created_at",
+            "image",
+            "tags",
+        )
+
+
+class PostListSerializer(serializers.ModelSerializer):
+    author = UserListSerializer(
+        many=False,
+        read_only=True,
+    )
+    number_of_likes = serializers.IntegerField(
+        source="likes.count", read_only=True
+    )
+    tags = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field="name"
+    )
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "title",
+            "content",
+            "created_at",
+            "image",
+            "author",
+            "number_of_likes",
+            "tags",
+        )
