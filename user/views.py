@@ -1,5 +1,8 @@
+import json
+
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
+from django_celery_beat.models import ClockedSchedule, PeriodicTask
 from rest_framework import generics, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
@@ -20,6 +23,7 @@ from user.serializers import (
     PostListSerializer,
     PostDetailSerializer,
     CommentCreateSerializer,
+    PostCreateScheduleSerializer,
 )
 
 
@@ -140,6 +144,8 @@ class PostViewSet(viewsets.ModelViewSet):
             return PostDetailSerializer
         elif self.action == "comment":
             return CommentCreateSerializer
+        elif self.action == "schedule":
+            return PostCreateScheduleSerializer
 
         return serializer_class
 
@@ -249,5 +255,34 @@ class PostViewSet(viewsets.ModelViewSet):
 
         return Response(
             serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(
+        methods=["POST"],
+        detail=False
+    )
+    def schedule(self, request: Request) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        created_at = serializer.validated_data.pop("created_at")
+        serializer.validated_data["author"] = self.request.user
+
+        clocked_time = ClockedSchedule.objects.create(
+            clocked_time=created_at
+        )
+        PeriodicTask.objects.create(
+            name=f"Delayed post #{clocked_time.id}",
+            task="user.tasks.delayed_post",
+            clocked=clocked_time,
+            description="This task publishes a post "
+                        "at the exact time selected by the user",
+            kwargs=json.dumps(serializer.validated_data),
+            one_off=True
+        )
+
+        return Response(
+            {"detail": "Post scheduled"},
             status=status.HTTP_201_CREATED
         )
