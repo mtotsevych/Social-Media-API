@@ -19,6 +19,7 @@ from user.serializers import (
     PostCreateUpdateSerializer,
     PostListSerializer,
     PostDetailSerializer,
+    CommentCreateSerializer,
 )
 
 
@@ -66,7 +67,9 @@ class UserListView(generics.ListAPIView):
         return queryset
 
 
-class UserYourProfileView(generics.RetrieveUpdateAPIView):
+class UserYourProfileView(
+    generics.RetrieveUpdateDestroyAPIView
+):
     serializer_class = UserDetailSerializer
 
     def get_object(self) -> User:
@@ -135,6 +138,8 @@ class PostViewSet(viewsets.ModelViewSet):
             return PostListSerializer
         elif self.action == "retrieve":
             return PostDetailSerializer
+        elif self.action == "comment":
+            return CommentCreateSerializer
 
         return serializer_class
 
@@ -226,4 +231,23 @@ class PostViewSet(viewsets.ModelViewSet):
         return Response(
             {"detail": "You did not like this post"},
             status=status.HTTP_200_OK
+        )
+
+    @action(
+        methods=["POST"],
+        detail=True
+    )
+    def comment(self, request: Request, pk: int) -> Response:
+        post = self.get_object()
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(
+            post=post,
+            commentator=self.request.user
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
         )
