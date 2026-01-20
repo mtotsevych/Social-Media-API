@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 
-from user.models import User, Tag, Post
+from user.models import User, Tag, Post, Comment
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -123,7 +123,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return user
 
 
-class PostCreateSerializer(serializers.ModelSerializer):
+class PostCreateUpdateSerializer(serializers.ModelSerializer):
     tags = serializers.SlugRelatedField(
         many=True,
         queryset=Tag.objects.all(),
@@ -167,4 +167,56 @@ class PostListSerializer(serializers.ModelSerializer):
             "author",
             "number_of_likes",
             "tags",
+        )
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    commentator = UserListSerializer(
+        many=False,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Comment
+        fields = (
+            "id",
+            "content",
+            "created_at",
+            "commentator",
+        )
+
+
+class PostDetailSerializer(serializers.ModelSerializer):
+    author = UserListSerializer(
+        many=False,
+        read_only=True,
+    )
+    liked_by = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        source="likes",
+        slug_field="email"
+    )
+    tags = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field="name"
+    )
+    comments = CommentSerializer(
+        many=True,
+        read_only=True
+    )
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "title",
+            "content",
+            "created_at",
+            "image",
+            "author",
+            "liked_by",
+            "tags",
+            "comments"
         )

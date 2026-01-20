@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 
 from user.views import (
     UserLoginView,
@@ -9,13 +10,14 @@ from user.views import (
     UserOtherProfileView,
     UserSubscribeView,
     UserUnsubscribeView,
-    PostCreateView,
-    PostListView,
-    PostLikeView,
-    PostUnlikeView,
+    PostViewSet,
 )
 
 app_name = "user"
+
+router = DefaultRouter()
+
+router.register("posts", PostViewSet, basename="post")
 
 urlpatterns = [
     path("register/", UserCreateView.as_view(), name="register"),
@@ -41,24 +43,5 @@ urlpatterns = [
         UserUnsubscribeView.as_view(),
         name="user-unsubscribe"
     ),
-    path(
-        "posts/create/",
-        PostCreateView.as_view(),
-        name="post-create"
-    ),
-    path(
-        "posts/",
-        PostListView.as_view(),
-        name="post-list"
-    ),
-    path(
-        "posts/<int:pk>/like/",
-        PostLikeView.as_view(),
-        name="post-like"
-    ),
-    path(
-        "posts/<int:pk>/unlike/",
-        PostUnlikeView.as_view(),
-        name="post-unlike"
-    ),
+    path("", include(router.urls)),
 ]

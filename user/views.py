@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
@@ -15,8 +16,9 @@ from user.serializers import (
     AuthTokenSerializer,
     UserListSerializer,
     UserDetailSerializer,
-    PostCreateSerializer,
+    PostCreateUpdateSerializer,
     PostListSerializer,
+    PostDetailSerializer,
 )
 
 
@@ -117,28 +119,41 @@ class UserUnsubscribeView(APIView):
         )
 
 
-class PostCreateView(generics.CreateAPIView):
-    serializer_class = PostCreateSerializer
-
-    def perform_create(self, serializer: PostCreateSerializer) -> None:
-        serializer.save(author=self.request.user)
-
-
-class PostListView(generics.ListAPIView):
-    serializer_class = PostListSerializer
-    queryset = (
-        Post.objects
-        .select_related("author")
-        .prefetch_related("likes", "tags")
-    )
+class PostViewSet(viewsets.ModelViewSet):
+    serializer_class = PostCreateUpdateSerializer
+    queryset = Post.objects.all()
 
     @staticmethod
     def params_to_ints(qs: str) -> list[int]:
         """Converts a list of string IDs to a list of integers"""
         return [int(str_id) for str_id in qs.split(",")]
 
+    def get_serializer_class(self):
+        serializer_class = self.serializer_class
+
+        if self.action == "list":
+            return PostListSerializer
+        elif self.action == "retrieve":
+            return PostDetailSerializer
+
+        return serializer_class
+
     def get_queryset(self) -> QuerySet[Post]:
         queryset = self.queryset
+
+        if self.action == "list":
+            queryset = (
+                queryset
+                .select_related("author")
+                .prefetch_related("likes", "tags")
+            )
+
+        if self.action == "retrieve":
+            queryset = (
+                queryset
+                .select_related("author")
+                .prefetch_related("likes", "tags", "comments")
+            )
 
         user_posts = self.request.query_params.get("my")
         subscriptions_posts = self.request.query_params.get(
@@ -163,10 +178,18 @@ class PostListView(generics.ListAPIView):
 
         return queryset.distinct()
 
+    def perform_create(
+        self,
+        serializer: PostCreateUpdateSerializer
+    ) -> None:
+        serializer.save(author=self.request.user)
 
-class PostLikeView(APIView):
-    def post(self, request: Request, pk: int) -> Response:
-        post = get_object_or_404(Post, pk=pk)
+    @action(
+        methods=["POST"],
+        detail=True
+    )
+    def like(self, request: Request, pk: int) -> Response:
+        post = self.get_object()
 
         if post.author == request.user:
             return Response(
@@ -186,10 +209,12 @@ class PostLikeView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-
-class PostUnlikeView(APIView):
-    def post(self, request: Request, pk: int) -> Response:
-        post = get_object_or_404(Post, pk=pk)
+    @action(
+        methods=["POST"],
+        detail=True
+    )
+    def unlike(self, request: Request, pk: int) -> Response:
+        post = self.get_object()
 
         if post.likes.filter(pk=request.user.pk).exists():
             post.likes.remove(request.user)
