@@ -133,7 +133,7 @@ class PostListView(generics.ListAPIView):
     )
 
     @staticmethod
-    def _params_to_ints(qs: str) -> list[int]:
+    def params_to_ints(qs: str) -> list[int]:
         """Converts a list of string IDs to a list of integers"""
         return [int(str_id) for str_id in qs.split(",")]
 
@@ -142,18 +142,63 @@ class PostListView(generics.ListAPIView):
 
         user_posts = self.request.query_params.get("my")
         subscriptions_posts = self.request.query_params.get(
-            "subscriptions_posts"
+            "subscriptions"
         )
+        liked_posts = self.request.query_params.get("liked")
         tags = self.request.query_params.get("tags")
 
-        if user_posts == "yes":
+        if user_posts == "1":
             queryset = queryset.filter(author=self.request.user)
-        if subscriptions_posts == "yes":
+        if subscriptions_posts == "1":
             queryset = queryset.filter(
                 author__in=self.request.user.subscriptions.all()
             )
+        if liked_posts == "1":
+            queryset = queryset.filter(
+                likes__id=self.request.user.id
+            )
         if tags:
-            tag_ids = self._params_to_ints(tags)
+            tag_ids = self.params_to_ints(tags)
             queryset = queryset.filter(tags__id__in=tag_ids)
 
         return queryset.distinct()
+
+
+class PostLikeView(APIView):
+    def post(self, request: Request, pk: int) -> Response:
+        post = get_object_or_404(Post, pk=pk)
+
+        if post.author == request.user:
+            return Response(
+                {"detail": "You cannot like your own post"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if post.likes.filter(pk=request.user.pk).exists():
+            return Response(
+                {"detail": "You already liked this post"},
+                status=status.HTTP_200_OK
+            )
+
+        post.likes.add(request.user)
+        return Response(
+            {"detail": "You successfully liked this post"},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class PostUnlikeView(APIView):
+    def post(self, request: Request, pk: int) -> Response:
+        post = get_object_or_404(Post, pk=pk)
+
+        if post.likes.filter(pk=request.user.pk).exists():
+            post.likes.remove(request.user)
+            return Response(
+                {"detail": "You successfully unliked this post"},
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            {"detail": "You did not like this post"},
+            status=status.HTTP_200_OK
+        )
