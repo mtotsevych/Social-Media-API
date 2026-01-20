@@ -11,6 +11,8 @@ from user.views import (
     UserUnsubscribeView,
     PostCreateView,
     PostListView,
+    PostLikeView,
+    PostUnlikeView,
 )
 
 app_name = "user"
@@ -48,5 +50,15 @@ urlpatterns = [
         "posts/",
         PostListView.as_view(),
         name="post-list"
+    ),
+    path(
+        "posts/<int:pk>/like/",
+        PostLikeView.as_view(),
+        name="post-like"
+    ),
+    path(
+        "posts/<int:pk>/unlike/",
+        PostUnlikeView.as_view(),
+        name="post-unlike"
     ),
 ]
