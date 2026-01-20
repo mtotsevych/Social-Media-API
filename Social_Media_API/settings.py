@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "django_celery_beat",
     "user",
 ]
 
@@ -135,3 +136,11 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
     ]
 }
+
+CELERY_BROKER_URL = "redis://redis:6379/"
+
+CELERY_TIMEZONE = "Europe/Warsaw"
+
+CELERY_TASK_TRACK_STARTED = True
+
+CELERY_TASK_TIME_LIMIT = 30 * 60
