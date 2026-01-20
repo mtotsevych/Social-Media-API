@@ -142,6 +142,10 @@ class PostCreateUpdateSerializer(serializers.ModelSerializer):
         )
 
 
+class PostCreateScheduleSerializer(PostCreateUpdateSerializer):
+    created_at = serializers.DateTimeField()
+
+
 class PostListSerializer(serializers.ModelSerializer):
     author = UserListSerializer(
         many=False,
