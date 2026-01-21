@@ -7,13 +7,14 @@ from rest_framework import generics, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from user.models import User, Post
+from user.permissions import IsAuthor
 from user.serializers import (
     UserCreateSerializer,
     AuthTokenSerializer,
@@ -36,10 +37,13 @@ class UserCreateView(generics.CreateAPIView):
 class UserLoginView(ObtainAuthToken):
     serializer_class = AuthTokenSerializer
     authentication_classes = ()
+    permission_classes = (AllowAny,)
     renderer_classes = (JSONRenderer, BrowsableAPIRenderer,)
 
 
 class UserLogoutView(APIView):
+    permission_classes = (AllowAny,)
+
     def post(self, request: Request) -> Response:
         token = request.auth
         if token:
@@ -129,6 +133,13 @@ class UserUnsubscribeView(APIView):
 class PostViewSet(viewsets.ModelViewSet):
     serializer_class = PostCreateUpdateSerializer
     queryset = Post.objects.all()
+
+    def get_permissions(self) -> list[BasePermission]:
+        if self.action in (
+            "update", "partial_update", "destroy",
+        ):
+            return [IsAuthor()]
+        return [IsAuthenticated()]
 
     @staticmethod
     def params_to_ints(qs: str) -> list[int]:
