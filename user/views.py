@@ -3,6 +3,13 @@ import json
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django_celery_beat.models import ClockedSchedule, PeriodicTask
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+    OpenApiExample,
+    OpenApiParameter
+)
 from rest_framework import generics, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
@@ -46,6 +53,20 @@ class UserLoginView(ObtainAuthToken):
     renderer_classes = (JSONRenderer, BrowsableAPIRenderer,)
 
 
+@extend_schema_view(
+    post=extend_schema(
+        request=None,
+        responses=OpenApiResponse(
+            response={"detail": "Logged out"},
+            description="Successfully logs out the user "
+                        "by deleting their token",
+            examples=[OpenApiExample(
+                name="logout",
+                value={"detail": "Logged out"}
+            )]
+        )
+    )
+)
 class UserLogoutView(APIView):
     permission_classes = (AllowAny,)
 
@@ -80,6 +101,52 @@ class UserListView(generics.ListAPIView):
 
         return queryset
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="email",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Filter by email address of the user",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="email",
+                        value="user@example.com"
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name="first_name",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Filter by first name of the user",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="first_name",
+                        value="Bob"
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name="last_name",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Filter by last name of the user",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="last_name",
+                        value="Brown"
+                    )
+                ]
+            )
+        ]
+    )
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return super().get(request, *args, **kwargs)
+
 
 class UserYourProfileView(
     generics.RetrieveUpdateDestroyAPIView
@@ -95,6 +162,36 @@ class UserOtherProfileView(generics.RetrieveAPIView):
     queryset = get_user_model().objects.all()
 
 
+@extend_schema_view(
+    post=extend_schema(
+        request=None,
+        responses={
+            400: OpenApiResponse(
+                response={"detail": "You cannot subscribe to yourself"},
+                examples=[OpenApiExample(
+                    name="subscribe",
+                    value={"detail": "You cannot subscribe to yourself"},
+                )]
+            ),
+            200: OpenApiResponse(
+                response={"detail": "Already subscribed"},
+                examples=[OpenApiExample(
+                    name="subscribe",
+                    value={"detail": "Already subscribed"},
+                )]
+            ),
+            201: OpenApiResponse(
+                response={"detail": "You are now subscribed "
+                                    "to user@example.com"},
+                examples=[OpenApiExample(
+                    name="subscribe",
+                    value={"detail": "You are now subscribed "
+                                     "to user@example.com"},
+                )]
+            )
+        }
+    )
+)
 class UserSubscribeView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         user = get_object_or_404(get_user_model(), pk=pk)
@@ -119,6 +216,31 @@ class UserSubscribeView(APIView):
         )
 
 
+@extend_schema_view(
+    post=extend_schema(
+        request=None,
+        responses={
+            201: OpenApiResponse(
+                response={"detail": "You are unsubscribed "
+                                    "from user@example.com"},
+                examples=[OpenApiExample(
+                    name="unsubscribe",
+                    value={"detail": "You are unsubscribed "
+                                     "from user@example.com"},
+                )]
+            ),
+            200: OpenApiResponse(
+                response={"detail": "You are not subscribed "
+                                    "to user@example.com"},
+                examples=[OpenApiExample(
+                    name="unsubscribe",
+                    value={"detail": "You are not subscribed "
+                                     "to user@example.com"},
+                )]
+            )
+        }
+    )
+)
 class UserUnsubscribeView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         user = get_object_or_404(get_user_model(), pk=pk)
@@ -127,7 +249,7 @@ class UserUnsubscribeView(APIView):
             request.user.subscriptions.remove(user)
             return Response(
                 {"detail": f"You are unsubscribed from {user.email}"},
-                status=status.HTTP_200_OK
+                status=status.HTTP_201_CREATED
             )
 
         return Response(
@@ -213,6 +335,97 @@ class PostViewSet(viewsets.ModelViewSet):
     ) -> None:
         serializer.save(author=self.request.user)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="my",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Search for posts by its author",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="my",
+                        value=1
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name="subscriptions",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Search for posts by subscriptions",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="subscriptions",
+                        value=1
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name="liked",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Search for posts by likes",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="liked",
+                        value=1
+                    )
+                ]
+            ),
+            OpenApiParameter(
+                name="tags",
+                type={"type": "array", "items": {"type": "integer"}},
+                location=OpenApiParameter.QUERY,
+                description="Search for posts by tags",
+                required=False,
+                examples=[
+                    OpenApiExample(
+                        name="tags",
+                        value=[1, 2]
+                    )
+                ]
+            )
+        ]
+    )
+    def list(self, request: Request, *args, **kwargs) -> Response:
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(
+                response={"detail": "You already liked this post"},
+                examples=[
+                    OpenApiExample(
+                        name="like",
+                        value={"detail": "You already liked this post"},
+                    )
+                ]
+            ),
+            201: OpenApiResponse(
+                response={"detail": "You successfully liked this post"},
+                examples=[
+                    OpenApiExample(
+                        name="like",
+                        value={"detail": "You successfully liked this post"},
+                    )
+                ]
+            ),
+            400: OpenApiResponse(
+                response={"detail": "You cannot like your own post"},
+                examples=[
+                    OpenApiExample(
+                        name="like",
+                        value={"detail": "You cannot like your own post"},
+                    )
+                ]
+            )
+        }
+    )
     @action(
         methods=["POST"],
         detail=True
@@ -238,6 +451,29 @@ class PostViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(
+                response={"detail": "You did not like this post"},
+                examples=[
+                    OpenApiExample(
+                        name="unlike",
+                        value={"detail": "You did not like this post"},
+                    )
+                ]
+            ),
+            201: OpenApiResponse(
+                response={"detail": "You successfully unliked this post"},
+                examples=[
+                    OpenApiExample(
+                        name="unlike",
+                        value={"detail": "You successfully unliked this post"},
+                    )
+                ]
+            ),
+        }
+    )
     @action(
         methods=["POST"],
         detail=True
@@ -249,7 +485,7 @@ class PostViewSet(viewsets.ModelViewSet):
             post.likes.remove(request.user)
             return Response(
                 {"detail": "You successfully unliked this post"},
-                status=status.HTTP_200_OK
+                status=status.HTTP_201_CREATED
             )
 
         return Response(
