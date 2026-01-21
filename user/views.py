@@ -7,13 +7,18 @@ from rest_framework import generics, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    BasePermission
+)
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from user.models import User, Post
+from user.pagination import ListPagination
 from user.permissions import IsAuthor
 from user.serializers import (
     UserCreateSerializer,
@@ -57,6 +62,7 @@ class UserLogoutView(APIView):
 class UserListView(generics.ListAPIView):
     serializer_class = UserListSerializer
     queryset = get_user_model().objects.all()
+    pagination_class = ListPagination
 
     def get_queryset(self) -> QuerySet[User]:
         queryset = self.queryset
@@ -133,6 +139,7 @@ class UserUnsubscribeView(APIView):
 class PostViewSet(viewsets.ModelViewSet):
     serializer_class = PostCreateUpdateSerializer
     queryset = Post.objects.all()
+    pagination_class = ListPagination
 
     def get_permissions(self) -> list[BasePermission]:
         if self.action in (
