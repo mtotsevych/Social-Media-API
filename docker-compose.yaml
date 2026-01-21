@@ -1,0 +1,75 @@
+services:
+  app:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - my_media:/files/media
+    command: >
+      sh -c
+      "python manage.py wait_for_db &&
+       python manage.py migrate &&
+       python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - my_db:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    restart: always
+
+  celery-worker:
+    build:
+      context: .
+    env_file:
+      - .env
+    restart: always
+    command: >
+      celery -A user worker --loglevel=INFO
+    depends_on:
+      - app
+      - db
+      - redis
+
+  celery-beat:
+    build:
+      context: .
+    env_file:
+      - .env
+    restart: always
+    command: >
+      celery -A user beat --loglevel=INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      - app
+      - db
+      - redis
+
+  celery-flower:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    command: >
+      celery -A user flower --address=0.0.0.0 --port=5555
+    depends_on:
+      - celery-worker
+      - celery-beat
+
+volumes:
+  my_db:
+  my_media:
